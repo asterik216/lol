@@ -9,9 +9,16 @@ end
 require("Analytics")
 
 Analytics("Eternal Riven", "Toshibiotro", true)
+
+function AutoUpdate(data)
+    if tonumber(data) > tonumber(ver) then
+        print("New version found! " .. data)
+        print("Downloading update, please wait...")
+        DownloadFileAsync("https://raw.githubusercontent.com/Toshibiotro/stuff/master/CustomRiven.lua", SCRIPT_PATH .. "CustomRiven.lua", function() print("Update Complete, please 2x F6!") return end)
     end
 end
 
+GetWebResultAsync("https://raw.githubusercontent.com/Toshibiotro/stuff/master/CustomRiven.version", AutoUpdate)
 
 require ("DamageLib")
 require ("OpenPredict")
@@ -35,6 +42,19 @@ RivenMenu.Combo:Boolean("CH", "Use R Hydra", true)
 RivenMenu.Combo:Boolean("CTH", "Use T Hydra", true)
 RivenMenu.Combo:Boolean("YGB", "Use GhostBlade", true)
 
+RivenMenu:SubMenu("Misc", "Misc")
+RivenMenu.Misc:SubMenu("AL", "Auto Level")
+RivenMenu.Misc:Boolean("GSQ", "God Speed Q", true)
+RivenMenu.Misc.AL:Boolean("UAL", "Use Auto Level", false)
+RivenMenu.Misc.AL:Boolean("ALQ", "R>Q>E>W", false)
+RivenMenu.Misc.AL:Boolean("ALE", "R>E>Q>W", false)
+RivenMenu.Misc:Boolean("AutoI", "Auto Ignite", true)
+RivenMenu.Misc:Boolean("AW", "Auto W", true)
+RivenMenu.Misc:Slider("AWC", "Min Enemies To Auto W",3,1,6,1)
+RivenMenu.Misc:Boolean("AR", "Auto R If Hit X Enemies", true)
+RivenMenu.Misc:Slider("ARC", "Min Enemies To Auto R",4,1,6,1)
+
+RivenMenu:SubMenu("SkinChanger", "SkinChanger")
 
 local skinMeta = {["Riven"] = {"Classic", "Redeemed", "Crimson Elite", "Battle Bunny", "Championship", "Dragonblade", "Arcade"}}
 RivenMenu.SkinChanger:DropDown('skin', myHero.charName.. " Skins", 1, skinMeta[myHero.charName], HeroSkinChanger, true)
@@ -97,7 +117,80 @@ OnTick(function ()
 		end	
 	end	
 
+	--AutoW
+	if RivenMenu.Misc.AW:Value() and Ready(_W) and EnemiesAround(myHero, GetCastRange(myHero, _W)) > RivenMenu.Misc.AWC:Value() then
+		CastSpell(_W)
+	end
+	
+	--AutoIgnite
+	for _, enemy in pairs(GetEnemyHeroes()) do
+		if GetCastName(myHero, SUMMONER_1):lower():find("summonerdot") then
+			if RivenMenu.Misc.AutoI:Value() and Ready(SUMMONER_1) and ValidTarget(enemy, 600) then
+				if GetCurrentHP(enemy) < IDamage then
+					CastTargetSpell(enemy, SUMMONER_1)
+				end
+			end
+		end
+	
+		if GetCastName(myHero, SUMMONER_2):lower():find("summonerdot") then
+			if RivenMenu.Misc.AutoI:Value() and Ready(SUMMONER_2) and ValidTarget(enemy, 600) then
+				if GetCurrentHP(enemy) < IDamage then
+					CastTargetSpell(enemy, SUMMONER_2)
+				end
+			end
+		end
+	end
 
+	--Jungle Clear
+	if Mix:Mode() == "LaneClear" then
+		if RivenMenu.JungleClear.JCW:Value() and Ready(_W) and MinionsAround(myHero, GetCastRange(myHero, _W), MINION_JUNGLE) > 0 then
+			CastSpell(_W)
+		end
+	end	
+	
+	--Auto R
+	for _, enemy in pairs(GetEnemyHeroes()) do
+		if RivenMenu.Misc.AR:Value() and UltOn and EnemiesAround(enemy, 100) >= RivenMenu.Misc.ARC:Value() and Ready(_R) then
+			local RPred = GetConicAOEPrediction(enemy,RStats)
+			if RPred.hitChance >= 0.3 then
+				CastSkillShot(_R, RPred.castPos) 
+			end	
+		end
+	end	
+	
+OnDraw(function()
+	local pos = GetOrigin(myHero)
+	if RivenMenu.Draw.DQ:Value() then DrawCircle(pos, 260, 1, 25, GoS.White) end
+	if RivenMenu.Draw.DAA:Value() then DrawCircle(pos, 125, 1, 25, GoS.Green) end
+	if RivenMenu.Draw.DW:Value() then DrawCircle(pos, 275, 1, 25, GoS.Blue) end
+	if RivenMenu.Draw.DE:Value() then DrawCircle(pos, 325, 1, 25, GoS.Yellow) end
+	if RivenMenu.Draw.DR:Value() then DrawCircle(pos, 900, 1, 25, GoS.Cyan) end
+	
+	for _, enemy in pairs(GetEnemyHeroes()) do
+		local RRDmg = getdmg("R",enemy,myHero,GetCastLevel(myHero, _R))
+		if RivenMenu.Draw.DD:Value() and Ready(_Q) and Ready(_W) and Ready(_R) then DrawDmgOverHpBar(enemy, GetCurrentHP(enemy), QDmg(enemy) * 3 + (WDmg(enemy)) + (RRDmg) + (AAB(enemy) * 3), 0, GoS.White) end
+		if RivenMenu.Draw.DD:Value() and Ready(_Q) and Ready(_W) and not Ready(_R) then DrawDmgOverHpBar(enemy, GetCurrentHP(enemy), (QDmg(enemy) * 3) + (WDmg(enemy)) + (AAB(enemy) * 3), 0, GoS.White) end
+		if RivenMenu.Draw.DD:Value() and Ready(_Q) and not Ready(_W) and not Ready(_R) then DrawDmgOverHpBar(enemy, GetCurrentHP(enemy), (QDmg(enemy) * 3) + (AAB(enemy) * 3), 0, GoS.White) end
+		if RivenMenu.Draw.DD:Value() and Ready(_W) and Ready(_Q) and not Ready(_R) then DrawDmgOverHpBar(enemy, GetCurrentHP(enemy), WDmg(enemy) + (QDmg(enemy) * 3) + (AAB(enemy) * 3), 0, GoS.White) end		
+		if RivenMenu.Draw.DD:Value() and Ready(_W) and not Ready(_Q) and not Ready(_R) then DrawDmgOverHpBar(enemy, GetCurrentHP(enemy), WDmg(enemy) + (AAB(enemy) * 3), 0, GoS.White) end
+		if RivenMenu.Draw.DD:Value() and Ready(_W) and Ready(_R) and not Ready(_Q) then DrawDmgOverHpBar(enemy, GetCurrentHP(enemy), WDmg(enemy) + RRDmg + (AAB(enemy) * 3), 0, GoS.White) end
+		if RivenMenu.Draw.DD:Value() and Ready(_R) and Ready(_Q) and not Ready(_W) then DrawDmgOverHpBar(enemy, GetCurrentHP(enemy), RRDmg + (QDmg(enemy) * 3) + (AAB(enemy) * 3), 0, GoS.White) end
+		if RivenMenu.Draw.DD:Value() and Ready(_R) and Ready(_W) and not Ready(_Q) then DrawDmgOverHpBar(enemy, GetCurrentHP(enemy), RRDmg + WDmg(enemy) + (AAB(enemy) * 3), 0, GoS.White) end
+		if RivenMenu.Draw.DD:Value() and Ready(_R) and not Ready(_W) and not Ready(_Q) then DrawDmgOverHpBar(enemy, GetCurrentHP(enemy), RRDmg + (AAB(enemy) * 3), 0, GoS.White) end
+	end
+end)	
+
+OnProcessSpell(function(unit, spell)
+	
+	local RH = GetItemSlot(myHero, 3074)
+	local YGB = GetItemSlot(myHero, 3142)
+	local Tiamat = GetItemSlot(myHero, 3077)
+
+	if RivenMenu.Combo.YGB:Value() and unit.isMe and spell.name:lower():find("rivenfengshuiengine") then
+		if Mix:Mode() == "Combo" then
+			if YGB > 0 then
+				if Ready(YGB) then
+					CastSpell(YGB)
 				end
 			end
 		end
@@ -160,6 +253,16 @@ OnProcessSpellComplete(function(unit,spell)
 			end
 		end
 	end
+	
+	if unit.isMe and spell.name:lower():find("attack") and spell.target.isMinion then
+		if Mix:Mode() == "LaneClear" then
+			for _, closeminion in pairs(minionManager.objects) do
+				if RivenMenu.LaneClear.LCQ:Value() and Ready(_Q) and ValidTarget(closeminion, GetCastRange(myHero, _Q)) then			
+					CastSkillShot(_Q, closeminion)				
+				end
+			end
+		end	
+	end	
 	
 	if unit.isMe and spell.name:lower():find("rivenfengshuiengine") then
 		DelayAction(function()
